@@ -27,7 +27,7 @@ As someone passionate about cybersecurity, I wanted to challenge myself by build
 ## 🔐 Encryption & Security Highlights
 
 - **AES-256-CBC** is used for encrypting each password, with a **unique IV per entry**
-- Master passwords are **hashed using SHA-256**
+- Master passwords are **hashed using Argon2**
 - An **AES key is derived using PBKDF2** from the master password and a random salt
 - Session storage ensures **no encryption keys are stored on the server**
 - **Access control checks** prevent unauthorized access to password entries

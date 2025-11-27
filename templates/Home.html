@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="description" content="LockBox is a secure password manager that helps you generate, store, and protect your passwords effortlessly.">
+            <title>LockBox - Secure Password Manager</title>
+            <link rel="icon" href="/static/images/icon.png" type="png">
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+            {% if session.get('user_id') %}
+        <script>
+            // Set sessionStorage values after successful login
+            window.addEventListener('DOMContentLoaded', () => {
+                const userId = "{{ session['user_id'] }}";
+                const masterSalt = "{{ session['master_salt'] }}";
+                const iv = "{{ session['iv'] }}";  // Retrieve IV from session
+
+                // Check if both userId and masterSalt exist before setting them
+                if (userId && masterSalt && iv) {
+                    sessionStorage.setItem('userId', userId);
+                    sessionStorage.setItem('masterSalt', masterSalt);
+                    sessionStorage.setItem('iv', iv);  // Store the IV in sessionStorage
+
+                    console.log("📦 sessionStorage values set:");
+                    console.log("👤 User ID:", userId);
+                    console.log("🧂 Master Salt:", masterSalt);
+                    console.log("IV is:", iv);
+                } else {
+                    console.error("❌ Missing session data in Flask!");
+                }
+
+                // Log values in sessionStorage for debugging
+                const aesKey = sessionStorage.getItem("aesKey");
+                const storedMasterSalt = sessionStorage.getItem("masterSalt");
+                const storedUserId = sessionStorage.getItem("userId");
+                const storedIv = sessionStorage.getItem("iv");
+
+                console.log("📦 SessionStorage on Home page:");
+                console.log("🔑 AES Key:", aesKey ?? '❌ Not Set');
+                console.log("🧂 Master Salt:", storedMasterSalt ?? '❌ Not Set');
+                console.log("👤 User ID:", storedUserId ?? '❌ Not Set');
+                console.log("IV:", storedIv ?? '❌ Not Set');
+
+                // ✅ Derive usable CryptoJS key object from sessionStorage
+                if (aesKey) {
+                    const keyHex = sessionStorage.getItem("aesKey");
+                    const key = CryptoJS.enc.Hex.parse(keyHex);
+                    window.decryptionKey = key; // Optional: expose for use in functions
+                    console.log("🔓 Usable CryptoJS Key created from sessionStorage.");
+                } else {
+                    console.warn("⚠️ AES Key not found in sessionStorage; cannot prepare decryption key.");
+                }
+            });
+        </script>
+        {% endif %}    
+    </head>
+    <body>
+        <style>
+            body {
+                font-family: 'Roboto', sans-serif;
+                margin-top: 80px;
+                background: linear-gradient(135deg, #EAF9FF, #FFFFFF);
+                color: #333;
+            }
+
+            /* Navbar */
+            .navbar 
+            {
+                background-color: #004080; 
+                transition: background-color 0.3s ease-in-out;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+                display: flex;
+                justify-content: space-between; 
+                align-items: center; 
+                padding: 12px 30px;
+            }
+
+            .navbar-brand {
+                display: flex;
+                align-items: center;
+            }
+
+            .navbar-brand img {
+                height: 80px;
+            }
+
+            .navbar-nav {
+                display: flex;
+                gap: 15px;
+                margin: 0; 
+                list-style: none; 
+                padding: 0;
+            }
+
+            .navbar-nav .nav-link {
+                color: #FFFFFF;
+                font-weight: bold;
+                text-decoration: none; /* Removes underline */
+                transition: color 0.2s;
+                padding: 10px 20px; /* Add some spacing for better appearance */
+                background-color: #00C29A; /* Button background color */
+                border-radius: 5px; /* Rounded corners */
+                text-align: center;
+            }
+
+            .navbar-nav .nav-link:hover {
+                background-color: #008060; /* Darker hover effect for buttons */
+                color: #FFFFFF; /* Maintain white text */
+            }
+
+            .navbar-nav .start-free-account {
+                background-color: #FF6F61;
+                padding: 8px 15px;
+                border-radius: 5px;
+                color: white;
+                text-decoration: none; /* Removes underline */
+                font-weight: bold;
+            }
+
+            .navbar-nav .start-free-account:hover {
+                opacity: 0.8;
+            }
+
+
+            /* Login and Registration Buttons */
+            .auth-buttons .btn-login {
+                background-color: #00B894;
+                color: #FFFFFF;
+                border: 2px solid #00B894; 
+                padding: 10px 25px;
+                font-size: 1rem;
+                border-radius: 25px;
+                display: inline-block;
+                transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+                margin-left: 10px;
+            }
+            .auth-buttons .btn-login:hover {
+                background-color: #009973;
+                color: #FFFFFF;
+                border-color: #009973;
+            }
+
+            /* Hero Section */
+            .hero-section {
+                position: relative;
+                color: #000000;
+                text-align: center;
+                padding: 100px 20px;
+            }
+            .hero-section::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-image: url("{{ url_for('static', filename='images/mesh_blended_with_blue.jpg') }}");
+                opacity: 0.6; 
+                z-index: -1; 
+            }
+            .hero-section h1 {
+                font-size: 3rem;
+                font-weight: bold;
+                animation: fade-in 1.5s;
+            }
+            .hero-section p {
+                font-size: 1.25rem;
+                font-weight: bold; 
+            }
+            .hero-section .button-container {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                flex-direction: column; 
+                gap: 15px; 
+            }
+            .hero-section .btn-register {
+                background-color: #FF6F61;
+                color: #000000;
+                border: none;
+                padding: 12px 30px;
+                font-size: 1.25rem;
+                border-radius: 25px;
+                transition: background-color 0.3s;
+            }
+            .hero-section .btn-register:hover {
+                background-color: #E05550;
+            }
+            .hero-section .btn-generator {
+                background-color: #FFFFFF;
+                color: #1F8BF5;
+                border: 2px solid #1F8BF5;
+                padding: 10px 25px;
+                font-size: 1rem;
+                border-radius: 25px;
+                transition: background-color 0.3s, color 0.3s;
+            }
+            .hero-section .btn-generator:hover {
+                background-color: #1F8BF5;
+                color: #FFFFFF;
+            }
+
+            /* Features Section */
+            .section-padding {
+                padding: 60px 20px;
+            }
+            .feature-card {
+                padding: 30px;
+                background: #FFFFFF;
+                border-radius: 10px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                transition: transform 0.2s;
+            }
+            .feature-card:hover {
+                transform: translateY(-5px);
+            }
+            .feature-card i {
+                color: #00B894;
+            }
+
+            /* Security Section */
+            .bg-light {
+                background: linear-gradient(135deg, #1F8BF5, #5AD0FF); 
+                color: #FFFFFF;
+                padding: 60px 20px;
+            }
+            .text-success {
+                color: #40e0c0 !important;
+            }
+
+            /* Call to Action */
+            .text-center {
+                text-align: center;
+            }
+
+            .btn-register {
+                background-color: #FF6F61;
+                color: #FFFFFF;
+                border: none;
+                padding: 12px 30px;
+                font-size: 1.25rem;
+                border-radius: 25px;
+                transition: background-color 0.3s;
+            }
+            .btn-register:hover {
+                background-color: #E05550;
+            }
+
+            /* Password Practices Section */
+            #poor-password-practices {
+                padding: 50px 0;
+                background-color: #f8f9fa;
+            }
+            .card {
+                opacity: 0; /* Start hidden */
+                transform: translateY(20px); /* Start slightly below */
+                transition: opacity 0.5s ease, transform 0.5s ease; /* Transition for opacity and transform */
+            }
+            .card.visible {
+                opacity: 1; /* Fade in */
+                transform: translateY(0); /* Move to original position */
+            }
+            .card:nth-child(1) { transition-delay: 0.3s; }
+            .card:nth-child(2) { transition-delay: 0.4s; }
+            .card:nth-child(3) { transition-delay: 0.5s; }
+            .card:nth-child(4) { transition-delay: 0.6s; }
+            .card:nth-child(5) { transition-delay: 0.7s; }
+            .card:nth-child(6) { transition-delay: 0.8s; }
+
+            /* Footer Styles */
+            .footer {
+                background-color: #004080; /* Dark blue background */
+                color: #fff;
+                padding: 1rem 0;
+                text-align: center;
+                position: relative;
+                bottom: 0;
+                width: 100%;
+            }
+            .footer-container p {
+                margin: 0;
+                font-size: 0.9rem;
+                font-family: 'Roboto', sans-serif;
+            }
+
+            /* Dropdown Styles */
+            .dropdown {
+                position: relative;
+                display: inline-block;
+                margin-right: 80px;
+            }
+
+            .dropbtn {
+                margin: 0 80px 0 0;
+                display: inline-block;
+                background-color: #009973;
+                color: white;
+                padding: 10px 16px;
+                font-size: 16px;
+                border: none;
+                cursor: pointer;
+                border-radius: 8px;
+                transition: background-color 0.3s ease;
+            }
+
+            .dropbtn:hover {
+                background-color: #45a049;
+            }
+
+            .dropdown-content {
+                margin-right: 50px;
+                display: none;
+                position: absolute;
+                top: 100%;
+                right: 0;
+                background-color: #f9f9f9;
+                min-width: 160px;
+                box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
+                z-index: 1;
+                border-radius: 8px;
+                opacity: 0;
+                transform: translateY(-10px);
+                transition: opacity 0.3s ease, transform 0.3s ease;
+            }
+
+            .dropdown-content a {
+                color: black;
+                padding: 12px 16px;
+                text-decoration: none;
+                display: block;
+                border-radius: 8px;
+            }
+
+            .dropdown-content a:hover {
+                background-color: #ddd;
+            }
+
+            .dropdown:hover .dropdown-content {
+                display: block;
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            /* Icon spacing in dropdown */
+            .dropdown-content a i {
+                margin-right: 8px;
+                width: 20px;
+                text-align: center;
+            }
+        </style>
+        <!-- Navbar -->
+        <nav class="navbar navbar-expand-lg fixed-top">
+            <div class="container-fluid px-4">
+                <a class="navbar-brand" href="{{ url_for('home') }}">
+                    <img src="{{ url_for('static', filename='images/Lockbox_Logo.png') }}" alt="LockBox Logo" height="80">
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse justify-content-center" id="navbarNav">
+                    <ul class="navbar-nav"></ul>
+                </div>
+                <div class="nav-container">
+                    <div class="auth-buttons">
+                        {% if first_name %}
+                        <!-- Dropdown for Logged-in Users -->
+                        <div class="dropdown">
+                            <button class="dropbtn">Welcome, {{ first_name }} ▼</button>
+                            <div class="dropdown-content">
+                                <a href="{{ url_for('home') }}"><i class="fas fa-home"></i> Home</a>
+                                <a href="{{ url_for('Dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                                <a href="{{ url_for('Settings') }}"><i class="fas fa-cog"></i> Settings</a>
+                                <a href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- Default Buttons for Non-Logged-in Users -->
+                        <a href="{{ url_for('login') }}" class="btn btn-login">Login</a>
+                        <a href="{{ url_for('register') }}" class="btn btn-login">Register</a>
+                        {% endif %}
+                    </div>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="container">
+                <h1 class="display-4 mb-4 fade-in">Secure Your Digital Life</h1>
+                <p class="lead mb-5 slide-up">Your trusted companion for password management and security</p>
+                <p class="mb-4">Take control of your online security with LockBox's advanced password management tools.</p>
+                <div class="button-container">
+                    {% if not session.get('user_id') %}
+                        <div class="button-container">
+                        <a href="{{ url_for('register') }}" class="btn btn-register btn-lg" role="button">Get Started Now</a>
+                        <a href="{{ url_for('generator') }}" class="btn btn-generator btn-lg">Use the Password Generator for Free</a>
+
+                        {% else %}
+
+                        <a href="{{ url_for('generator') }}" class="btn btn-generator btn-lg">Start Using the Password Generator</a>
+
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="section-padding">
+            <div class="container">
+                <h2 class="text-center mb-5">Why Choose LockBox?</h2>
+                <div class="row">
+                    <!-- Feature Card 1 -->
+                    <div class="col-md-4 mb-4">
+                        <div class="feature-card text-center">
+                            <i class="bi bi-shield-lock fs-1 mb-3"></i>
+                            <h3>Secure Storage</h3>
+                            <p>High-grade encryption to keep your passwords safe.</p>
+                        </div>
+                    </div>
+                    <!-- Feature Card 2 -->
+                    <div class="col-md-4 mb-4">
+                        <div class="feature-card text-center">
+                            <i class="bi bi-key fs-1 mb-3"></i>
+                            <h3>Password Generator</h3>
+                            <p>Create strong, unique passwords with one click.</p>
+                        </div>
+                    </div>
+                    <!-- Feature Card 3 -->
+                    <div class="col-md-4 mb-4">
+                        <div class="feature-card text-center">
+                            <i class="bi bi-phone fs-1 mb-3"></i>
+                            <h3>Cross-Platform</h3>
+                            <p>Access your passwords anywhere, on any device.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Password Common Practices -->
+        <section id="poor-password-practices">
+            <div class="container">
+                <h2 class="text-center mb-4">The Most Common Poor Password Practices</h2>
+                <div class="row">
+                    <!-- Practice 1 -->
+                    <div class="col-md-4 mb-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <img src="static\images\unlock.png" alt="Easy-to-Guess Passwords" class="mb-3" style="width: 80px; height: 80px;">
+                                <h5 class="card-title">Easy-to-Guess Passwords</h5>
+                                <p class="card-text">Using common phrases, names, or simple combinations makes passwords easy to crack.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Practice 2 -->
+                    <div class="col-md-4 mb-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <img src="static\images\refresh-data.png" alt="Easy-to-Guess Passwords" class="mb-3" style="width: 80px; height: 80px;">
+                                <h5 class="card-title">Reusing Passwords</h5>
+                                <p class="card-text">Using the same password across multiple sites increases vulnerability.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Practice 3 -->
+                    <div class="col-md-4 mb-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <img src="static\images\share.png" alt="Easy-to-Guess Passwords" class="mb-3" style="width: 80px; height: 80px;">
+                                <h5 class="card-title">Sharing Passwords</h5>
+                                <p class="card-text">Sharing passwords with others can lead to data breaches if not handled properly.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Practice 4 -->
+                    <div class="col-md-4 mb-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <img src="static\images\write.png" alt="Easy-to-Guess Passwords" class="mb-3" style="width: 80px; height: 80px;">
+                                <h5 class="card-title">Insecure Storage</h5>
+                                <p class="card-text">Storing passwords in insecure locations like plain text files makes them vulnerable.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Practice 5 -->
+                    <div class="col-md-4 mb-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <img src="static\images\two-factor-authentication.png" alt="Easy-to-Guess Passwords" class="mb-3" style="width: 80px; height: 80px;">
+                                <h5 class="card-title">Skipping Multi-Factor Authentication</h5>
+                                <p class="card-text">Failing to enable MFA weakens the security of accounts.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Practice 6 -->
+                    <div class="col-md-4 mb-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <img src="static\images\safebox.png" alt="Easy-to-Guess Passwords" class="mb-3" style="width: 80px; height: 80px;">
+                                <h5 class="card-title">Letting Browsers Save Passwords</h5>
+                                <p class="card-text">Allowing browsers to store passwords without encryption can expose your credentials to theft.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Security Section -->
+        <section class="section-padding bg-light">
+            <div class="container">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h2 class="mb-4">Your Security Is Our Priority</h2>
+                        <p class="mb-4">We use advanced encryption technology to ensure your data remains private and secure.</p>
+                        <ul class="list-unstyled">
+                            <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i>End-to-end encryption</li>
+                            <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i>Two-factor authentication</li>
+                            <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i>Regular security audits</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <!-- Add security-related image here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Call to Action -->
+        {% if not session.get('user_id') %}
+        <section class="section-padding text-center">
+            <div class="container">
+                <h2 class="mb-4">Ready to Secure Your Passwords?</h2>
+                <p class="mb-4">Join the users who trust LockBox with their digital security.</p>
+                <a href="{{ url_for('register') }}" class="btn btn-register btn-lg" role="button">Create Free Account</a>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Bootstrap Icons -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+        
+        <!-- Scripts -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            //Login button action effects    
+                document.addEventListener("DOMContentLoaded", function() {
+                const dropdown = document.querySelector(".dropbtn");
+                const menu = document.querySelector(".dropdown-content");
+                
+                dropdown.addEventListener("click", function() {
+                    menu.style.display = menu.style.display === "block" ? "none" : "block";
+                });
+
+
+                document.addEventListener("click", function(event) {
+                    if (!dropdown.contains(event.target) && !menu.contains(event.target)) {
+                        menu.style.display = "none";
+                    }
+                });
+            });
+
+
+            // Navbar scroll effect
+            window.addEventListener('scroll', function() {
+                if (window.scrollY > 50) {
+                    document.querySelector('.navbar').classList.add('scrolled');
+                } else {
+                    document.querySelector('.navbar').classList.remove('scrolled');
+                }
+            });
+
+            // Function to check if an element is in the viewport
+            function isElementInViewport(el) {
+                const rect = el.getBoundingClientRect();
+                return (
+                    rect.top >= 0 &&
+                    rect.left >= 0 &&
+                    rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+                    rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+                );
+            }
+
+            // Function to add visible class to cards when they are in the viewport
+            function checkCardsVisibility() {
+                const cards = document.querySelectorAll('#poor-password-practices .card');
+                cards.forEach(card => {
+                    if (isElementInViewport(card)) {
+                        card.classList.add('visible');
+                    }
+                });
+            }
+
+            // Check visibility on scroll
+            window.addEventListener('scroll', checkCardsVisibility);
+            // Initial check in case the cards are already in view
+            checkCardsVisibility();
+        </script>
+        <script>
+            function logSessionStorage() {
+                console.log("📦 SessionStorage Contents:");
+                const keysToLog = ['aesKey', 'masterSalt', 'userId', 'formVisible'];
+                keysToLog.forEach(key => {
+                    const value = sessionStorage.getItem(key);
+                    console.log(`${key}:`, value ?? '❌ Not Set');
+                });
+            }
+        
+            // Ensure logging happens after the page is fully loaded
+            window.onload = logSessionStorage;
+        </script>
+        
+
+        <!-- Footer Section -->
+        <footer class="footer">
+            <div class="footer-container">
+                <p>&copy; 2025 LockBox. All Rights Reserved.</p>
+            </div>
+        </footer>
+    </body>
+</html>
