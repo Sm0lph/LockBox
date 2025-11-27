@@ -236,12 +236,6 @@ def add_password():
         iv = data.get('iv')
         user_id = session['user_id']
 
-        print("🔍 Extracted values:")
-        print(f"- Website: {website}")
-        print(f"- Encrypted password length: {len(encrypted_password) if encrypted_password else 'None'}")
-        print(f"- IV length: {len(iv) if iv else 'None'}")
-        print(f"- User ID: {user_id}")
-
         # Validate required fields
         if not website or not encrypted_password or not iv:
             missing_fields = []
@@ -421,6 +415,8 @@ def settings():
                          total_passwords=total_passwords,
                          last_update=time_ago,
                          current_timeout=current_timeout)
+
+#--------------------------------------------------------------------------------------
 
 @app.route('/update_session_timeout', methods=['POST'])
 def update_session_timeout():
