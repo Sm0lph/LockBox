@@ -1,0 +1,28 @@
+name: Run LockBox App
+
+on:
+  workflow_dispatch:        # Allows manual running from GitHub Actions tab
+  push:                     # Optional: run every time you push code
+    branches:
+      - main
+
+jobs:
+  run-app:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'   # Change if needed
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run LockBox app.py
+        run: |
+          python Lockbox/app.py
