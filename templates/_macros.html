@@ -1,0 +1,12 @@
+{#- Shared helpers. Usage:  {% from "_macros.html" import icon %}  then  {{ icon('lock') }} -#}
+{% macro icon(name, cls='') -%}
+<svg class="icon {{ cls }}" aria-hidden="true" focusable="false"><use href="#i-{{ name }}"/></svg>
+{%- endmacro %}
+
+{#- Theme toggle button (sun in dark mode, moon in light mode). -#}
+{% macro theme_toggle() -%}
+<button type="button" class="btn btn-ghost icon-btn theme-toggle" data-theme-toggle aria-label="Switch colour theme">
+  <svg class="icon when-light" aria-hidden="true"><use href="#i-moon"/></svg>
+  <svg class="icon when-dark" aria-hidden="true"><use href="#i-sun"/></svg>
+</button>
+{%- endmacro %}

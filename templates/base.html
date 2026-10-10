@@ -1,0 +1,178 @@
+{#-
+  LockBox base layout.
+
+  Child templates can set, right after {% extends %}:
+    {% set page_kind = 'app' %}     -> logged-in pages get the sidebar shell (default: 'site')
+    {% set active = 'vault' %}      -> which nav item is highlighted
+  and override the blocks: title, head, content, scripts.
+-#}
+{% from "_macros.html" import icon, theme_toggle %}
+{% set logged_in = session.get('user_id') is not none %}
+{% set first = session.get('first_name') or '' %}
+{% set initial = (first[:1] if first else 'U')|upper %}
+{% set shell = 'app' if (logged_in and page_kind|default('site') == 'app') else 'site' %}
+{% set nav = active|default('') %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}Password manager{% endblock %} · LockBox</title>
+  <meta name="description" content="LockBox is a password manager that encrypts every password in your browser before it is saved.">
+  <link rel="icon" href="{{ url_for('static', filename='images/icon.png') }}" type="image/png">
+
+  {# Apply the saved theme before first paint so there is no flash of the wrong one. #}
+  <script>
+    (function () {
+      var pref = 'system';
+      try { pref = localStorage.getItem('lb-theme') || 'system'; } catch (e) {}
+      var dark = pref === 'dark' || (pref === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+      var d = document.documentElement;
+      d.dataset.theme = dark ? 'dark' : 'light';
+      d.dataset.themePref = pref;
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..700&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/lockbox.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  {% include "_icons.html" %}
+
+  {% if shell == 'app' %}
+  {# ---------- App shell: sidebar on desktop, tab bar on phones ---------- #}
+  <div class="app">
+    <aside class="sidebar" aria-label="Main">
+      <a class="brand" href="{{ url_for('home') }}" aria-label="LockBox home">
+        <img src="{{ url_for('static', filename='images/LockBox_Logo.png') }}" alt="LockBox" width="97" height="40">
+      </a>
+      <nav class="side-nav" aria-label="Primary">
+        <a href="{{ url_for('Dashboard') }}" {% if nav == 'vault' %}aria-current="page"{% endif %}>{{ icon('vault') }} Vault</a>
+        <a href="{{ url_for('generator') }}" {% if nav == 'generator' %}aria-current="page"{% endif %}>{{ icon('key') }} Generator</a>
+        <a href="{{ url_for('settings') }}" {% if nav == 'settings' %}aria-current="page"{% endif %}>{{ icon('sliders') }} Settings</a>
+      </nav>
+      <div class="side-foot">
+        <div class="side-user">
+          <span class="avatar" aria-hidden="true">{{ initial }}</span>
+          <span class="who"><b>{{ first or 'Your account' }}</b><span>Signed in</span></span>
+          <a class="btn btn-ghost icon-btn btn-sm" href="{{ url_for('logout') }}" data-logout title="Log out" aria-label="Log out">{{ icon('logout') }}</a>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0 .25rem">
+          <span class="muted" style="font-size:.85rem">Theme</span>
+          {{ theme_toggle() }}
+        </div>
+      </div>
+    </aside>
+
+    <div class="app-main">
+      <div class="app-mobile-top">
+        <a class="brand" href="{{ url_for('home') }}" aria-label="LockBox home">
+          <img src="{{ url_for('static', filename='images/LockBox_Logo.png') }}" alt="LockBox" width="82" height="34">
+        </a>
+        <span class="spacer"></span>
+        {{ theme_toggle() }}
+      </div>
+  {% else %}
+  {# ---------- Public header ---------- #}
+  <header class="site-top" id="site-top">
+    <div class="wrap">
+      <a class="brand" href="{{ url_for('home') }}" aria-label="LockBox home">
+        <img src="{{ url_for('static', filename='images/LockBox_Logo.png') }}" alt="LockBox" width="97" height="40">
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="{{ url_for('home') }}" {% if nav == 'home' %}aria-current="page"{% endif %}>Home</a>
+        <a href="{{ url_for('generator') }}" {% if nav == 'generator' %}aria-current="page"{% endif %}>Generator</a>
+        {% if logged_in %}<a href="{{ url_for('Dashboard') }}" {% if nav == 'vault' %}aria-current="page"{% endif %}>Vault</a>{% endif %}
+      </nav>
+      <div class="site-actions">
+        {{ theme_toggle() }}
+        {% if logged_in %}
+        <div class="menu" data-menu>
+          <button type="button" class="menu-btn" aria-haspopup="true" aria-expanded="false" aria-controls="account-menu">
+            <span class="avatar" aria-hidden="true">{{ initial }}</span>
+            <span class="btn-label-long">{{ first or 'Account' }}</span>
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#i-chevron"/></svg>
+          </button>
+          <div class="menu-list" id="account-menu" hidden>
+            <a href="{{ url_for('Dashboard') }}">{{ icon('vault') }} Vault</a>
+            <a href="{{ url_for('generator') }}">{{ icon('key') }} Generator</a>
+            <a href="{{ url_for('settings') }}">{{ icon('sliders') }} Settings</a>
+            <hr>
+            <a href="{{ url_for('logout') }}" data-logout>{{ icon('logout') }} Log out</a>
+          </div>
+        </div>
+        {% else %}
+        <a class="btn btn-ghost" href="{{ url_for('login') }}" {% if nav == 'login' %}aria-current="page"{% endif %}>Log in</a>
+        <a class="btn btn-primary" href="{{ url_for('register') }}">Create account</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+  {% endif %}
+
+  <main id="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% if shell == 'app' %}
+    </div>{# /.app-main #}
+  </div>{# /.app #}
+  <nav class="tabbar" aria-label="Primary">
+    <a href="{{ url_for('Dashboard') }}" {% if nav == 'vault' %}aria-current="page"{% endif %}>{{ icon('vault') }}<span>Vault</span></a>
+    <a href="{{ url_for('generator') }}" {% if nav == 'generator' %}aria-current="page"{% endif %}>{{ icon('key') }}<span>Generator</span></a>
+    <a href="{{ url_for('settings') }}" {% if nav == 'settings' %}aria-current="page"{% endif %}>{{ icon('sliders') }}<span>Settings</span></a>
+    <a href="{{ url_for('logout') }}" data-logout>{{ icon('logout') }}<span>Log out</span></a>
+  </nav>
+  {% else %}
+  <footer class="site-foot">
+    <div class="wrap">
+      <span>&copy; <span data-year>2026</span> LockBox</span>
+      <span class="foot-theme">{{ theme_toggle() }}</span>
+      <nav aria-label="Footer">
+        <a href="{{ url_for('generator') }}">Password generator</a>
+        {% if logged_in %}
+        <a href="{{ url_for('Dashboard') }}">Vault</a>
+        {% else %}
+        <a href="{{ url_for('login') }}">Log in</a>
+        <a href="{{ url_for('register') }}">Create account</a>
+        {% endif %}
+      </nav>
+    </div>
+  </footer>
+  {% endif %}
+
+  {# Server-side flash() messages become toasts. #}
+  <div class="toasts" id="toasts" role="status" aria-live="polite">
+    {% with flashes = get_flashed_messages(with_categories=true) %}
+      {% for category, message in flashes %}
+      {% set kind = 'error' if category in ('error', 'danger') else category %}
+      <div class="toast" data-kind="{{ kind }}" data-flash>
+        {% if kind == 'success' %}{{ icon('check') }}{% elif kind in ('error', 'warning') %}{{ icon('alert') }}{% else %}{{ icon('info') }}{% endif %}
+        <span class="toast-msg">{{ message }}</span>
+        <button type="button" aria-label="Dismiss" data-toast-close>{{ icon('x', 'icon-sm') }}</button>
+      </div>
+      {% endfor %}
+    {% endwith %}
+  </div>
+
+  {# Shared confirmation dialog, driven by LB.confirm() #}
+  <dialog id="lb-confirm" class="modal" aria-labelledby="lb-confirm-title">
+    <form method="dialog" class="dialog-card">
+      <h2 id="lb-confirm-title"></h2>
+      <p id="lb-confirm-body" class="muted"></p>
+      <div class="dialog-actions">
+        <button type="submit" value="cancel" class="btn btn-ghost" id="lb-confirm-cancel">Cancel</button>
+        <button type="submit" value="ok" class="btn btn-primary" id="lb-confirm-ok">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
