@@ -25,4 +25,4 @@ jobs:
 
       - name: Run LockBox app.py
         run: |
-          python Lockbox/app.py
+          python app.py
